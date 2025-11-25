@@ -3,10 +3,10 @@ from peft import LoraConfig, get_peft_model
 import torch
 
 MODEL_NAME = "facebook/dinov3-vitl16-pretrain-lvd1689m"
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-image_processor = AutoImageProcessor.from_pretrained(MODEL_NAME)
-backbone = AutoModel.from_pretrained(MODEL_NAME)
+#image_processor = AutoImageProcessor.from_pretrained(MODEL_NAME)
+#backbone = AutoModel.from_pretrained(MODEL_NAME)
 
 class DinoV3ClassifierLinearHead(torch.nn.Module):
     def __init__(
@@ -44,7 +44,7 @@ class DinoV3ClassifierLinearHead(torch.nn.Module):
                 p.requires_grad = False
             self.backbone.eval()
         
-        hidden_size = getattr(backbone.config, "hidden_size", None)
+        hidden_size = getattr(self.backbone.config, "hidden_size", None)
         self.head = torch.nn.Linear(hidden_size, num_classes)
 
     def forward(self, pixel_values):

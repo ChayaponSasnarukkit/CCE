@@ -10,7 +10,7 @@
 module load cuda 
 module load Mamba/23.11.0-0             # Load the module that you want to use
 
-conda activate CCE_env                    # Activate your environment
+conda activate myenv                    # Activate your environment
 echo $CUDA_HOME
 which python
 
@@ -22,4 +22,4 @@ export HF_DATASETS_OFFLINE=1
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-srun python scripts/train_section.py
+srun python train_section.py

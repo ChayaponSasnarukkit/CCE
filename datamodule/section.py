@@ -82,18 +82,18 @@ class EndoCapsuleDataset(Dataset):
         except:
             print(f'IMAGE FAILED TO LOAD: {path}')
             exit()
-        return np.asarray(im)
+        return im
 
     def __getitem__(self, index):
 
-        labels = torch.tensor(self.labels[[index]])
+        labels = torch.tensor(self.labels[index], dtype=torch.float)
 
-        image_path = os.path.join(self.root_dir, os.path.normpath(str(self.df.iloc[[index]]['path'].item())))
+        image_path = os.path.join(self.root_dir, os.path.normpath(str(self.df.iloc[index]['path'])))
 
         image = self.load_image(image_path)
 
         if self.transform is not None:
-            image = self.transform(image=image)
+            image = self.transform(image)
 
         return image, labels
 

@@ -2,7 +2,7 @@
 backbone_path: "facebook/dinov3-vitl16-pretrain-lvd1689m" # Or your specific path/repo
 freeze_backbone: false
 use_lora: true
-lora_r: 16
+lora_r: 32
 lora_alpha: 32
 lora_dropout: 0.1
 target_modules: ["q_proj", "v_proj", "k_proj"] 
