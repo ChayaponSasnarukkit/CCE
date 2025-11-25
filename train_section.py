@@ -119,7 +119,7 @@ class SectionClassifier(L.LightningModule):
 
         # Create the optimizer
         optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr = self.config["lr"])
-        TOTAL_SAMPLES = int(self.all_samples//4)
+        TOTAL_SAMPLES = int(self.all_samples)
         BATCH_SIZE = self.config["batch_size"]
         GRAD_ACCUM_STEPS = self.config["grad_accum_steps"]
         EPOCHS = self.config["epochs"]
@@ -285,7 +285,7 @@ def main():
         accelerator="gpu",
         num_nodes=1,
         devices=-1,
-        strategy="ddp_find_unused_parameters_true",
+        #strategy="ddp_find_unused_parameters_true",
         precision=args['precision'],
         logger=logger,
         callbacks=[val_checkpoint_callback, time_checkpoint_callback, lr_monitor],

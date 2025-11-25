@@ -2,7 +2,7 @@
 backbone_path: "facebook/dinov3-vitl16-pretrain-lvd1689m" # Or your specific path/repo
 freeze_backbone: false
 use_lora: true
-lora_r: 32
+lora_r: 16
 lora_alpha: 32
 lora_dropout: 0.1
 target_modules: ["q_proj", "v_proj", "k_proj"] 
@@ -10,14 +10,14 @@ target_modules: ["q_proj", "v_proj", "k_proj"]
 # --- Data Configuration ---
 train_csv_path: "/project/lt200353-pcllm/3d_report_gen/CCE/splits_publication/section/split_0/train.csv"
 val_csv_path: "/project/lt200353-pcllm/3d_report_gen/CCE/splits_publication/section/split_0/val.csv"
-height: 448 
-width: 448
-batch_size: 32
+height: 224 
+width: 224
+batch_size: 128
 num_workers: 4
 
 # --- Training Configuration ---
 lr: 2.0e-4
 epochs: 3
-grad_accum_steps: 16 # Matches your trainer logic
+grad_accum_steps: 4 # Matches your trainer logic
 gradient_clip_val: 2.0
 precision: "bf16-mixed" # or "bf16-mixed"
