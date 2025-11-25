@@ -12,10 +12,10 @@ from torch.utils.data import Dataset, Sampler, DataLoader
 from tqdm import tqdm
 from torchmetrics import MetricCollection
 from torchmetrics.classification import (
-    MultilabelF1Score,
-    MultilabelAUROC,
-    MultilabelPrecision,
-    MultilabelRecall,
+    MulticlassF1Score,
+    MulticlassAUROC,
+    MulticlassPrecision,
+    MulticlassRecall,
 )
 import lightning as L
 from datetime import timedelta
@@ -27,7 +27,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 from lightning.pytorch.loggers import TensorBoardLogger
 
 class SectionClassifier(L.LightningModule):
-    def __init__(self, config: dict, pos_weight: torch.Tensor = None, all_samples=100):
+    def __init__(self, config: dict, class_weights: torch.Tensor = None, all_samples=100):
         """
         Initializes the classification module.
         Args:
@@ -51,23 +51,24 @@ class SectionClassifier(L.LightningModule):
         )
 
         # --- 2. Loss Function ---
-        self.register_buffer('pos_weight', pos_weight)
-        self.criterion = nn.BCEWithLogitsLoss(pos_weight=self.pos_weight)
+        self.register_buffer('class_weights', class_weights)
+        self.criterion = nn.CrossEntropyLoss(weight=self.class_weights)
 
         # --- 4. Validation Metrics ---
         metrics = MetricCollection({
-            'F1_macro': MultilabelF1Score(num_labels=5, average='macro'),
-            'AUROC_macro': MultilabelAUROC(num_labels=5, average='macro'),
-            'Precision_macro': MultilabelPrecision(num_labels=5, average='macro'),
-            'Recall_macro': MultilabelRecall(num_labels=5, average='macro'),
+            'F1_macro': MulticlassF1Score(num_labels=5, average='macro'),
+            'AUROC_macro': MulticlassAUROC(num_labels=5, average='macro'),
+            'Precision_macro': MulticlassPrecision(num_labels=5, average='macro'),
+            'Recall_macro': MulticlassRecall(num_labels=5, average='macro'),
         })
         self.valid_metrics = metrics.clone(prefix='val/')
 
     def training_step(self, batch, batch_idx):
         #torch.autograd.set_detect_anomaly(True)
         images, labels = batch
+        target_indices = torch.argmax(labels, dim=1)
         logits = self.model(images)
-        loss = self.criterion(logits, labels)
+        loss = self.criterion(logits, target_indices)
         self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         
         return loss
@@ -78,12 +79,13 @@ class SectionClassifier(L.LightningModule):
         """
         images, labels = batch
         logits = self.model(images)
-        loss = self.criterion(logits, labels)
+        target_indices = torch.argmax(labels, dim=1)
+        loss = self.criterion(logits, target_indices)
 
         self.log('val_loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
 
-        preds_proba = torch.sigmoid(logits)
-        self.valid_metrics.update(preds_proba, labels.int())
+        preds_proba = torch.softmax(logits, dim=1)
+        self.valid_metrics.update(preds_proba, target_indices)
 
     def on_validation_epoch_end(self):
         """
@@ -240,22 +242,24 @@ def main():
     print("⚖️ Calculating weights for BCE loss based on training data distribution...")
     labels_df = train_dataset.df[['mouth', 'esophagus', 'stomach', 'small intestine', 'colon']]
 
-    # Count negative (0) and positive (1) samples for each pathology
-    neg_counts = (labels_df == 0).sum()
-    pos_counts = (labels_df == 1).sum()
+    label_indices = np.argmax(labels_df.values, axis=1)
+    
+    # Count occurrences of each class
+    class_counts = np.bincount(label_indices, minlength=5)
+    total_samples = len(label_indices)
+    num_classes = 5
+    
+    # Calculate weights: Total / (Num_Classes * Count)
+    # This balances the contribution of each class to the loss
+    weights = total_samples / (num_classes * class_counts + 1e-6)
 
-    # Calculate pos_weight = (number of negatives) / (number of positives)
-    # Add a small epsilon to avoid division by zero for classes with no positive samples
-    pos_weight_values = neg_counts / (pos_counts + 1e-6)
+    class_weights_tensor = torch.tensor(weights, dtype=torch.float32)
 
-    # Convert the calculated weights to a PyTorch tensor
-    pos_weight_tensor = torch.tensor(pos_weight_values.values, dtype=torch.float32)
-
-    # print("✅ Original pos_weight tensor (based on imbalance):")
-    for name, weight in zip(['mouth', 'esophagus', 'stomach', 'small intestine', 'colon'], pos_weight_tensor):
+    print("✅ Class weights:")
+    for name, weight in zip(['mouth', 'esophagus', 'stomach', 'small intestine', 'colon'], class_weights_tensor):
         print(f"  - {name}: {weight:.2f}")
     
-    model = SectionClassifier(args, pos_weight=pos_weight_tensor, all_samples=len(train_dataset))
+    model = SectionClassifier(args, pclass_weights=class_weights_tensor, all_samples=len(train_dataset))
     print(model)
 
     val_checkpoint_callback = ModelCheckpoint(
