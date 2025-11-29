@@ -8,11 +8,12 @@ lora_dropout: 0.1
 target_modules: ["q_proj", "v_proj", "k_proj"] 
 
 # --- Data Configuration ---
-train_csv_path: "/project/lt200353-pcllm/3d_report_gen/CCE/splits_publication/section/split_0/train.csv"
+#train_csv_path: "/project/lt200353-pcllm/3d_report_gen/CCE/splits_publication/section/split_0/train.csv"
+train_csv_path: "/home/csasnaru/CCE/train_metadata_cleaned.csv"
 val_csv_path: "/project/lt200353-pcllm/3d_report_gen/CCE/splits_publication/section/split_0/val.csv"
 height: 224 
 width: 224
-batch_size: 128
+batch_size: 256
 num_workers: 8 
 
 # --- Training Configuration ---
