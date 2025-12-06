@@ -209,8 +209,10 @@ def evaluate(ckpt_path, config_path, device_str="cuda"):
     df_results, best_thresholds = find_optimal_thresholds(all_probs, all_targets, class_names)
     
     print("\nResults after Tuning:")
+    df_results.to_csv("score.csv")
+    print(df_results)
     # Print nice markdown table
-    print(df_results.to_markdown(index=False))
+    # print(df_results.to_markdown(index=False))
     
     # E. 3: Export Misclassified Examples (Optional suggestion)
     # You could add code here to save filenames of images that were wrong even with best thresholds.
