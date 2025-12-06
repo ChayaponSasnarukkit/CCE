@@ -91,7 +91,7 @@ def plot_confusion_matrix(preds, targets, class_names, save_path="confusion_matr
     """
     Plots and saves a heatmap of the confusion matrix.
     """
-    cm_metric = MulticlassConfusionMatrix(num_labels=len(class_names)).to(preds.device)
+    cm_metric = MulticlassConfusionMatrix(num_classes=len(class_names)).to(preds.device)
     cm = cm_metric(preds, targets).cpu().numpy()
     
     # Normalize by row (True label) to see recall %
@@ -156,7 +156,8 @@ def evaluate(ckpt_path, config_path, device_str="cuda"):
     all_targets = []
     
     print("🚀 Running Inference...")
-    with torch.no_grad():
+    #with torch.no_grad():
+    with torch.inference_mode():
         for batch in tqdm(val_loader):
             images, labels = batch
             images = images.to(device)
@@ -168,14 +169,22 @@ def evaluate(ckpt_path, config_path, device_str="cuda"):
             # Get Target Index
             target_indices = torch.argmax(labels, dim=1)
             
-            all_probs.append(probs.cpu())
-            all_targets.append(target_indices.cpu())
+            all_probs.append(probs)
+            all_targets.append(target_indices)
 
     # Concatenate all batches
-    all_probs = torch.cat(all_probs)
-    all_targets = torch.cat(all_targets)
+    all_probs = torch.cat(all_probs).cpu()
+    all_targets = torch.cat(all_targets).cpu()
     class_names = val_dataset.label_names
+    save_path = "inference_results.pt"
 
+    torch.save({
+        'probs': all_probs,
+        'targets': all_targets,
+        'class_names': class_names
+    }, save_path)
+
+    print(f"✅ Results saved to {save_path}")
     # E. 1: Standard Metrics (Argmax)
     print("\n" + "="*40)
     print("📊 STANDARD REPORT (Argmax / Threshold=0.5)")
