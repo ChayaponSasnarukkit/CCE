@@ -43,7 +43,7 @@ class PathologyClassifier(L.LightningModule):
         self.config = config
 
         self.model = DinoV3ClassifierLinearHead(
-            num_classes=5,
+            num_classes=len(TARGET),
             backbone_path=config["backbone_path"],
             freeze_backbone = config["freeze_backbone"],
             use_lora = config["use_lora"],
@@ -123,7 +123,8 @@ class PathologyClassifier(L.LightningModule):
         # Create the optimizer
         optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr = self.config["lr"])
         TOTAL_SAMPLES = int(self.all_samples)
-        BATCH_SIZE = self.config["batch_size"]
+        num_devices = 4
+        BATCH_SIZE = self.config["batch_size"] * num_devices
         GRAD_ACCUM_STEPS = self.config["grad_accum_steps"]
         EPOCHS = self.config["epochs"]
         total_batches = TOTAL_SAMPLES // BATCH_SIZE
@@ -250,8 +251,8 @@ def main():
 
     # Calculate pos_weight = (number of negatives) / (number of positives)
     # Add a small epsilon to avoid division by zero for classes with no positive samples
-    pos_weight_values = 1 + np.log(neg_counts / (pos_counts + 1e-6))
-
+    # pos_weight_values = 1 + np.log(neg_counts / (pos_counts + 1e-6))
+    pos_weight_values = neg_counts / (pos_counts + 1e-6)
     # Convert the calculated weights to a PyTorch tensor
     pos_weight_tensor = torch.tensor(pos_weight_values.values, dtype=torch.float32)
 
@@ -288,7 +289,7 @@ def main():
         accelerator="gpu",
         num_nodes=1,
         devices=-1,
-        #strategy="ddp_find_unused_parameters_true",
+        strategy="ddp_find_unused_parameters_true",
         precision=args['precision'],
         logger=logger,
         callbacks=[val_checkpoint_callback, time_checkpoint_callback, lr_monitor],
