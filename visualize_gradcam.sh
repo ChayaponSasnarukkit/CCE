@@ -22,4 +22,4 @@ export HF_DATASETS_OFFLINE=1
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-srun python visualize_gradcam.py --ckpt "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/val_best/epoch=00-val/AUROC_macro=0.9548.ckpt"
+srun python visualize_gradcamv2.py --ckpt "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/val_best/epoch=00-val/AUROC_macro=0.9548.ckpt"
