@@ -15,36 +15,46 @@ from PIL import Image
 # --- Import your model definitions ---
 # Make sure these are in the python path or same directory
 from model.dinov3_classifier import DinoV3ClassifierLinearHead
-from train_multilabel import PathologyClassifier
+from train_colon_patho import PathologyClassifier
 from datamodule.section import EndoCapsuleDataset
 
-# ==========================================
-# 1. ViT Reshape Transform
-# ==========================================
 def reshape_transform(tensor, height=14, width=14):
     """
     Converts ViT 1D tokens back to 2D spatial feature maps.
-    Assumes the first token is [CLS] and discards it.
+    Handles both standard ViT (1 CLS token) and DINOv2/v3 (1 CLS + 4 Registers).
     """
     # tensor shape: [Batch, Seq_Len, Hidden_Dim]
-    # e.g., [1, 197, 1024] for ViT-Large
+    seq_len = tensor.shape[1]
     
-    # 1. Remove CLS token
-    result = tensor[:, 1:, :] 
+    # DINOv2/v3: 1 CLS + 4 Registers = 5 non-spatial tokens
+    # Standard ViT: 1 CLS = 1 non-spatial token
+    
+    # We assume the image is square to verify the math
+    # If (Seq_Len - 5) is a perfect square, remove 5.
+    # If (Seq_Len - 1) is a perfect square, remove 1.
+    
+    if int(np.sqrt(seq_len - 5)) ** 2 == (seq_len - 5):
+        tokens_to_skip = 5
+    else:
+        tokens_to_skip = 1
+
+    # 1. Remove CLS + Registers
+    # Taking the *last* N tokens is safer than slicing from start 
+    # because register tokens are usually at the beginning.
+    # However, standard convention is they are at the start.
+    result = tensor[:, tokens_to_skip:, :] 
     
     # 2. Transpose to [Batch, Hidden, Seq_Len]
     result = result.transpose(1, 2)
     
-    # 3. Calculate grid size (assuming square image)
-    # sqrt(196) = 14
-    seq_len = result.size(2)
-    grid_size = int(np.sqrt(seq_len))
+    # 3. Calculate grid size
+    # We recalculate seq_len after dropping tokens
+    spatial_seq_len = result.size(2)
+    grid_size = int(np.sqrt(spatial_seq_len))
     
     # 4. Reshape to [Batch, Hidden, Grid, Grid]
     result = result.reshape(tensor.size(0), tensor.size(2), grid_size, grid_size)
     
-    # Bring the channels to the beginning? No, standard CNN is B, C, H, W.
-    # We are returning the feature map.
     return result
 
 # ==========================================
@@ -96,11 +106,11 @@ def run_gradcam(ckpt_path, config_path, csv_path, output_dir="gradcam_results"):
     
     # Target Layer: For ViT, usually the final LayerNorm of the backbone
     # Structure: pl_module.model (DinoHead) -> .backbone (AutoModel) -> .layernorm
-    target_layers = [pl_module.model.backbone.layernorm]
-
+    #target_layers = [pl_module.model.backbone.layernorm]
+    target_layers = [pl_module.model.backbone.norm]
     # Initialize GradCAM
     cam = GradCAM(
-        model=pl_module, 
+        model=pl_module.model, 
         target_layers=target_layers, 
         reshape_transform=reshape_transform # CRITICAL FOR VIT
     )
