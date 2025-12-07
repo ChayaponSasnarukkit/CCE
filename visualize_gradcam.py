@@ -138,8 +138,8 @@ def run_gradcam(ckpt_path, config_path, csv_path, output_dir="gradcam_results"):
                 # 1. Load Image
                 try:
                     # Adjust path logic if relative/absolute paths differ
-                    # img_path_full = os.path.join("/path/to/dataset", path) 
-                    img_path_full = path # Assuming path in CSV is valid
+                    img_path_full = os.path.join("/project/lt200353-pcllm/3d_report_gen/CCE/", path) 
+                    # img_path_full = path # Assuming path in CSV is valid
                     
                     pil_img = Image.open(img_path_full).convert('RGB')
                     width, height = pil_img.size
