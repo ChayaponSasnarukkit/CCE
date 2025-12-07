@@ -21,10 +21,61 @@ import json  # Added for saving/loading thresholds
 # --- Import your specific model components ---
 from model.dinov3_classifier import DinoV3ClassifierLinearHead
 from datamodule.section import EndoCapsuleDataset
-from train_multilabel import PathologyClassifier 
+from train_colon_patho import PathologyClassifier 
 
 TARGETS = ['ulcer', 'polyp', 'blood', 'erythema',
            'erosion', 'angiectasia', 'IBD', 'hematin', 'lymphangioectasis']
+
+def save_detailed_results(dataset, probs, targets, class_names, thresholds_dict, save_path="error_analysis.csv"):
+    """
+    Creates a CSV linking filenames to probabilities, predictions, and ground truth.
+    """
+    print(f"\n📝 Generating Error Analysis Report -> {save_path}")
+
+    # --- UPDATE: Check for 'path' column first ---
+    if 'path' in dataset.df.columns:
+        filenames = dataset.df['path'].values
+    elif 'filename' in dataset.df.columns:
+        filenames = dataset.df['filename'].values
+    elif 'image_path' in dataset.df.columns:
+        filenames = dataset.df['image_path'].values
+    else:
+        print("⚠️ Warning: Could not find 'path', 'filename', or 'image_path' in dataset. Using indices.")
+        filenames = [f"idx_{i}" for i in range(len(dataset))]
+
+    # 2. Build the DataFrame
+    data = {'path': filenames} # Renamed output column to 'path' to match your input
+
+    # 3. Add per-class columns
+    for i, name in enumerate(class_names):
+        thresh = thresholds_dict.get(name, 0.5)
+
+        # Extract vectors
+        p = probs[:, i].numpy()
+        t = targets[:, i].numpy().astype(int)
+        pred = (p >= thresh).astype(int)
+
+        # Add columns
+        data[f'{name}_prob'] = p
+        data[f'{name}_pred'] = pred
+        data[f'{name}_gt'] = t
+
+        # Error Type: FP (False Pos), FN (False Neg)
+        error_type = []
+        for pr, tr in zip(pred, t):
+            if pr == 1 and tr == 0:
+                error_type.append("FP")
+            elif pr == 0 and tr == 1:
+                error_type.append("FN")
+            else:
+                error_type.append("") # Correct
+
+        data[f'{name}_error'] = error_type
+
+    df = pd.DataFrame(data)
+    df.to_csv(save_path, index=False)
+    print("✅ Saved.")
+    return df
 
 # ==========================================
 # Helper: Apply Specific Thresholds
@@ -209,14 +260,14 @@ def evaluate(ckpt_path, config_path, thresholds_path=None, device_str="cuda"):
             loaded_thresholds = json.load(f)
             
         df_results = apply_thresholds(all_probs, all_targets, TARGETS, loaded_thresholds)
-        
+        final_thresholds = loaded_thresholds
         print("\n📊 Results using Loaded Thresholds:")
         try:
             print(df_results)
         except ImportError:
             print(df_results)
             
-        plot_per_class_metrics(df_results, save_path="test_performance_custom_th.png")
+        plot_per_class_metrics(df_results, save_path=f"testtest_performance_custom_th.png")
 
     else:
         # --- MODE 2: Find Optimal Thresholds (Validation Mode) ---
@@ -227,7 +278,7 @@ def evaluate(ckpt_path, config_path, thresholds_path=None, device_str="cuda"):
         print("="*40)
         
         df_results, best_thresholds = find_optimal_thresholds(all_probs, all_targets, TARGETS)
-        
+        final_thresholds = best_thresholds
         print("\n🏆 Best Thresholds Found:")
         try:
             print(df_results.to_markdown(index=False))
@@ -239,8 +290,16 @@ def evaluate(ckpt_path, config_path, thresholds_path=None, device_str="cuda"):
         with open(out_json, "w") as f:
             json.dump(best_thresholds, f, indent=4)
         print(f"\n💾 Thresholds saved to {out_json}")
-        
-        plot_per_class_metrics(df_results, save_path="val_performance_optimized.png")
+        plot_per_class_metrics(df_results, save_path="testval_performance_optimized.png")
+
+    save_detailed_results(
+        dataset,
+        all_probs,
+        all_targets,
+        TARGETS,
+        final_thresholds,
+        save_path="testerror_analysis.csv"
+    )
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

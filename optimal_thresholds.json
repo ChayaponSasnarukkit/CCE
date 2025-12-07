@@ -1,0 +1,11 @@
+{
+    "ulcer": 0.01,
+    "polyp": 0.01,
+    "blood": 0.08,
+    "erythema": 0.17,
+    "erosion": 0.04,
+    "angiectasia": 0.15000000000000002,
+    "IBD": 0.01,
+    "hematin": 0.01,
+    "lymphangioectasis": 0.01
+}
