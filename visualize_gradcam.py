@@ -106,8 +106,11 @@ def run_gradcam(ckpt_path, config_path, csv_path, output_dir="gradcam_results"):
     
     # Target Layer: For ViT, usually the final LayerNorm of the backbone
     # Structure: pl_module.model (DinoHead) -> .backbone (AutoModel) -> .layernorm
-    #target_layers = [pl_module.model.backbone.layernorm]
-    target_layers = [pl_module.model.backbone.norm]
+    # target_layers = [pl_module.model.backbone.layernorm]
+    # target_layers = [pl_module.model.backbone.norm]
+    last_layer = pl_module.model.backbone.layer[-1]
+    target_layers = [last_layer.norm1]
+
     # Initialize GradCAM
     cam = GradCAM(
         model=pl_module.model, 
