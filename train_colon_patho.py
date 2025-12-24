@@ -155,6 +155,47 @@ def main():
     # 1. Load Config
     with open('./config/pathov1.yaml', 'r') as f:
         args = yaml.safe_load(f)
+
+    print(f"📊 Pre-processing: Undersampling Normal frames from {args['train_csv_path']}...")
+    
+    # 1. Load the original dataframe
+    full_df = pd.read_csv(args["train_csv_path"])
+    
+    # 2. Identify Normal vs Pathology rows
+    # "Normal" means the sum of all TARGET columns is 0. 
+    # If you have a specific 'Normal' column, change logic to: full_df['Normal'] == 1
+    is_pathology = full_df[TARGET].sum(axis=1) > 0
+    
+    df_pathology = full_df[is_pathology]
+    df_normal = full_df[~is_pathology]
+
+    print(f"   Original counts -> Pathology: {len(df_pathology)}, Normal: {len(df_normal)}")
+
+    # 3. Define how many normal samples we want
+    # 1:1 Ratio (Balanced) -> num normal = num pathology
+    target_normal_count = len(df_pathology) 
+    
+    # Option B: Custom Ratio (e.g., 2x more normals allowed)
+    # target_normal_count = len(df_pathology) * 2 
+    
+    # Option C: Hard limit (e.g., max 5000 normals)
+    # target_normal_count = 5000
+
+    # 4. Perform Random Undersampling
+    if len(df_normal) > target_normal_count:
+        df_normal_sampled = df_normal.sample(n=target_normal_count, random_state=42)
+    else:
+        df_normal_sampled = df_normal # Keep all if we have fewer than target
+
+    # 5. Combine and Shuffle
+    balanced_df = pd.concat([df_pathology, df_normal_sampled])
+    balanced_df = balanced_df.sample(frac=1, random_state=42).reset_index(drop=True)
+    
+    print(f"   ✅ Balanced counts -> Pathology: {len(df_pathology)}, Normal: {len(df_normal_sampled)}")
+    
+    # 6. Save to a temporary CSV to pass to your Dataset class
+    temp_csv_path = "./train_undersampled_temp.csv"
+    balanced_df.to_csv(temp_csv_path, index=False)
     
     training_transform = T.Compose([
         # 1. Resize (A.Resize)
@@ -196,7 +237,7 @@ def main():
     ])
 
     train_dataset = EndoCapsuleDataset(
-        csv_path=args["train_csv_path"],
+        csv_path=temp_csv_path,
         width=args["width"],
         height=args["height"],
         label_names=TARGET,
@@ -241,24 +282,26 @@ def main():
         pin_memory=True,
         shuffle=False
     )
+    if False:
+        print("⚖️ Calculating weights for BCE loss based on training data distribution...")
+        labels_df = train_dataset.df[TARGET]
 
-    print("⚖️ Calculating weights for BCE loss based on training data distribution...")
-    labels_df = train_dataset.df[TARGET]
+        # Count negative (0) and positive (1) samples for each pathology
+        neg_counts = (labels_df == 0).sum()
+        pos_counts = (labels_df == 1).sum()
 
-    # Count negative (0) and positive (1) samples for each pathology
-    neg_counts = (labels_df == 0).sum()
-    pos_counts = (labels_df == 1).sum()
+        # Calculate pos_weight = (number of negatives) / (number of positives)
+        # Add a small epsilon to avoid division by zero for classes with no positive samples
+        # pos_weight_values = 1 + np.log(neg_counts / (pos_counts + 1e-6))
+        pos_weight_values = neg_counts / (pos_counts + 1e-6)
+        # Convert the calculated weights to a PyTorch tensor
+        pos_weight_tensor = torch.tensor(pos_weight_values.values, dtype=torch.float32)
 
-    # Calculate pos_weight = (number of negatives) / (number of positives)
-    # Add a small epsilon to avoid division by zero for classes with no positive samples
-    # pos_weight_values = 1 + np.log(neg_counts / (pos_counts + 1e-6))
-    pos_weight_values = neg_counts / (pos_counts + 1e-6)
-    # Convert the calculated weights to a PyTorch tensor
-    pos_weight_tensor = torch.tensor(pos_weight_values.values, dtype=torch.float32)
-
-    # print("✅ Original pos_weight tensor (based on imbalance):")
-    for name, weight in zip(TARGET, pos_weight_tensor):
-        print(f"  - {name}: {weight:.2f}")
+        # print("✅ Original pos_weight tensor (based on imbalance):")
+        for name, weight in zip(TARGET, pos_weight_tensor):
+            print(f"  - {name}: {weight:.2f}")
+    else:
+        pos_weight_tensor = None
     
     model = PathologyClassifier(args, pos_weight=pos_weight_tensor, all_samples=len(train_dataset))
     print(model)
