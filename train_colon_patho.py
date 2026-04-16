@@ -173,10 +173,10 @@ def main():
 
     # 3. Define how many normal samples we want
     # 1:1 Ratio (Balanced) -> num normal = num pathology
-    target_normal_count = len(df_pathology) 
+    #target_normal_count = len(df_pathology) 
     
     # Option B: Custom Ratio (e.g., 2x more normals allowed)
-    # target_normal_count = len(df_pathology) * 2 
+    target_normal_count = len(df_pathology) * 3 
     
     # Option C: Hard limit (e.g., max 5000 normals)
     # target_normal_count = 5000
@@ -194,7 +194,7 @@ def main():
     print(f"   ✅ Balanced counts -> Pathology: {len(df_pathology)}, Normal: {len(df_normal_sampled)}")
     
     # 6. Save to a temporary CSV to pass to your Dataset class
-    temp_csv_path = "./train_undersampled_temp.csv"
+    temp_csv_path = "./train_undersampled_tempv3.csv"
     balanced_df.to_csv(temp_csv_path, index=False)
     
     training_transform = T.Compose([
@@ -282,7 +282,7 @@ def main():
         pin_memory=True,
         shuffle=False
     )
-    if False:
+    if True:
         print("⚖️ Calculating weights for BCE loss based on training data distribution...")
         labels_df = train_dataset.df[TARGET]
 
@@ -292,8 +292,8 @@ def main():
 
         # Calculate pos_weight = (number of negatives) / (number of positives)
         # Add a small epsilon to avoid division by zero for classes with no positive samples
-        # pos_weight_values = 1 + np.log(neg_counts / (pos_counts + 1e-6))
-        pos_weight_values = neg_counts / (pos_counts + 1e-6)
+        pos_weight_values = 1 + np.log(neg_counts / (pos_counts + 1e-6))
+        # pos_weight_values = neg_counts / (pos_counts + 1e-6)
         # Convert the calculated weights to a PyTorch tensor
         pos_weight_tensor = torch.tensor(pos_weight_values.values, dtype=torch.float32)
 
@@ -307,15 +307,15 @@ def main():
     print(model)
 
     val_checkpoint_callback = ModelCheckpoint(
-        dirpath="/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/val_best",
-        filename='{epoch:02d}-{val/AUROC_macro:.4f}',
+        dirpath="/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/both_log_val_best",
+        filename='{epoch:02d}-{val/F1_macro:.4f}',
         save_top_k=5,
-        monitor='val/AUROC_macro',
+        monitor='val/F1_macro',
         mode='max',
     )
 
     time_checkpoint_callback = ModelCheckpoint(
-        dirpath="/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/time",
+        dirpath="/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/both_time",
         filename='time-based-{epoch:02d}-{step}',
         train_time_interval=timedelta(hours=12),
         save_top_k=-1, # Saves all time-based checkpoints

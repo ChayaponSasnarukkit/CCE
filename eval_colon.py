@@ -290,7 +290,7 @@ def evaluate(ckpt_path, config_path, thresholds_path=None, device_str="cuda"):
         with open(out_json, "w") as f:
             json.dump(best_thresholds, f, indent=4)
         print(f"\n💾 Thresholds saved to {out_json}")
-        plot_per_class_metrics(df_results, save_path="testval_performance_optimized.png")
+        plot_per_class_metrics(df_results, save_path="testval_performance_optimized4.png")
 
     save_detailed_results(
         dataset,
@@ -298,7 +298,7 @@ def evaluate(ckpt_path, config_path, thresholds_path=None, device_str="cuda"):
         all_targets,
         TARGETS,
         final_thresholds,
-        save_path="testerror_analysis.csv"
+        save_path="testerror_analysis4.csv"
     )
 
 if __name__ == "__main__":

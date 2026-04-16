@@ -13,7 +13,7 @@ train_csv_path: "/project/lt200353-pcllm/3d_report_gen/CCE/train_colon_pathology
 val_csv_path: "/project/lt200353-pcllm/3d_report_gen/CCE/test_colon_pathology.csv"
 height: 448 
 width: 448
-batch_size: 256
+batch_size: 128
 num_workers: 8 
 
 # --- Training Configuration ---
