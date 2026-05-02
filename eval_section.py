@@ -111,13 +111,20 @@ def plot_confusion_matrix(preds, targets, class_names, save_path="confusion_matr
 # ==========================================
 # 3. Main Function
 # ==========================================
-def evaluate(ckpt_path, config_path, device_str="cuda"):
+def evaluate(cli_args, device_str="cuda"):
     # A. Setup
     device = torch.device(device_str if torch.cuda.is_available() else "cpu")
     print(f"⚙️ Running on {device}")
     
-    with open(config_path, 'r') as f:
+    # Ensure the base output directory exists
+    os.makedirs(cli_args.base_output_dir, exist_ok=True)
+    print(f"📂 Saving all outputs to: {cli_args.base_output_dir}")
+
+    with open(cli_args.config, 'r') as f:
         args = yaml.safe_load(f)
+
+    # ⚠️ INJECT CLI ARGS: Must inject backbone so the model initializes the correct architecture
+    args['backbone'] = cli_args.backbone
 
     # B. Load Data (Validation Set)
     print("📂 Loading Validation Data...")
@@ -129,7 +136,7 @@ def evaluate(ckpt_path, config_path, device_str="cuda"):
     ])
 
     val_dataset = EndoCapsuleDataset(
-        csv_path=args["val_csv_path"],
+        csv_path=args["test_csv_path"],
         width=args["width"],
         height=args["height"],
         label_names=['mouth', 'esophagus', 'stomach', 'small intestine', 'colon'],
@@ -145,9 +152,9 @@ def evaluate(ckpt_path, config_path, device_str="cuda"):
     )
 
     # C. Load Model
-    print(f"🔄 Loading Checkpoint: {ckpt_path}")
+    print(f"🔄 Loading Checkpoint: {cli_args.ckpt} with backbone: {args['backbone']}")
     # We pass strict=False to ignore missing loss weights in checkpoint if any
-    model = SectionClassifier.load_from_checkpoint(ckpt_path, config=args, strict=False)
+    model = SectionClassifier.load_from_checkpoint(cli_args.ckpt, config=args, strict=False)
     model.to(device)
     model.eval()
 
@@ -156,7 +163,6 @@ def evaluate(ckpt_path, config_path, device_str="cuda"):
     all_targets = []
     
     print("🚀 Running Inference...")
-    #with torch.no_grad():
     with torch.inference_mode():
         for batch in tqdm(val_loader):
             images, labels = batch
@@ -176,15 +182,17 @@ def evaluate(ckpt_path, config_path, device_str="cuda"):
     all_probs = torch.cat(all_probs).cpu()
     all_targets = torch.cat(all_targets).cpu()
     class_names = val_dataset.label_names
-    save_path = "inference_results.pt"
-
+    
+    # --- SAVE PATH: Inference Results ---
+    pt_save_path = os.path.join(cli_args.base_output_dir, "inference_results.pt")
     torch.save({
         'probs': all_probs,
         'targets': all_targets,
         'class_names': class_names
-    }, save_path)
+    }, pt_save_path)
 
-    print(f"✅ Results saved to {save_path}")
+    print(f"✅ Results saved to {pt_save_path}")
+    
     # E. 1: Standard Metrics (Argmax)
     print("\n" + "="*40)
     print("📊 STANDARD REPORT (Argmax / Threshold=0.5)")
@@ -198,8 +206,9 @@ def evaluate(ckpt_path, config_path, device_str="cuda"):
     print(f"Overall Accuracy: {acc:.4f}")
     print(f"Macro F1 Score:   {f1:.4f}")
 
-    # Plot Confusion Matrix
-    plot_confusion_matrix(preds_argmax, all_targets, class_names, save_path="confusion_matrix_standard.png")
+    # --- SAVE PATH: Confusion Matrix ---
+    cm_save_path = os.path.join(cli_args.base_output_dir, "confusion_matrix_standard.png")
+    plot_confusion_matrix(preds_argmax, all_targets, class_names, save_path=cm_save_path)
 
     # E. 2: Threshold Tuning
     print("\n" + "="*40)
@@ -209,19 +218,24 @@ def evaluate(ckpt_path, config_path, device_str="cuda"):
     df_results, best_thresholds = find_optimal_thresholds(all_probs, all_targets, class_names)
     
     print("\nResults after Tuning:")
-    df_results.to_csv("score.csv")
-    print(df_results)
-    # Print nice markdown table
-    # print(df_results.to_markdown(index=False))
     
-    # E. 3: Export Misclassified Examples (Optional suggestion)
-    # You could add code here to save filenames of images that were wrong even with best thresholds.
-
+    # --- SAVE PATH: Scores CSV ---
+    csv_save_path = os.path.join(cli_args.base_output_dir, "score.csv")
+    df_results.to_csv(csv_save_path, index=False)
+    print(f"✅ Metrics saved to {csv_save_path}")
+    print(df_results)
+    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ckpt", type=str, required=True, help="Path to .ckpt file")
+    
+    # Matching the new args from the train script
     parser.add_argument("--config", type=str, default="./config/section.yaml", help="Path to config file")
+    parser.add_argument("--backbone", type=str, choices=['dino', 'resnet'], default='dino', help="Model backbone used during training")
     
-    args = parser.parse_args()
+    # New argument for base output directory
+    parser.add_argument("--base_output_dir", type=str, default="./", help="Base directory to save output files")
     
-    evaluate(args.ckpt, args.config)
+    cli_args = parser.parse_args()
+    
+    evaluate(cli_args)
