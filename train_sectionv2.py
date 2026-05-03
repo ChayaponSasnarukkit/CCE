@@ -279,7 +279,7 @@ def main():
     lr_monitor = LearningRateMonitor(logging_interval='step')
     
     logger = TensorBoardLogger(
-        save_dir='./tb_log',
+        save_dir=os.path.join(args["savepoint"], 'tb_log'),
         version=''
     )
     

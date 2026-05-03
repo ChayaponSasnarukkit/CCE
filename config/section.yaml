@@ -14,7 +14,7 @@ val_csv_path: "/project/lt200353-pcllm/3d_report_gen/CCE/splits_publication/sect
 test_csv_path: "/project/lt200353-pcllm/3d_report_gen/CCE/splits_publication/section/test.csv"
 height: 224 
 width: 224
-batch_size: 256
+batch_size: 32
 num_workers: 8 
 
 # --- Training Configuration ---

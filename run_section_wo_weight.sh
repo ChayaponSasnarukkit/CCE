@@ -3,7 +3,7 @@
 #SBATCH -N 1 -c 16
 #SBATCH --ntasks-per-node=1   # 4 tasks
 #SBATCH --gpus-per-node=1     # 4 GPUs total on the node
-#SBATCH -t 2:00:00                     # Specify maximum time limit (hour: minute: second)
+#SBATCH -t 24:00:00                     # Specify maximum time limit (hour: minute: second)
 #SBATCH -A lt200353               # Specify project name
 #SBATCH -J TEST                         # Specify job name
 
@@ -21,4 +21,4 @@ export HF_DATASETS_OFFLINE=1
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-srun python eval_section.py --ckpt "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/val_best/epoch=00-val/AUROC_macro=0.9890.ckpt" --config "./config/section.yaml" --base_output_dir "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/val_best/"
+srun python train_sectionv2.py --savepoint /project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/base_augment --weighting None --augmentation augment --backbone dino
