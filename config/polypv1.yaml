@@ -1,0 +1,30 @@
+# Data Paths
+train_csv: "/project/lt200353-pcllm/3d_report_gen/CCE/train_polyp.csv"
+val_csv: "/project/lt200353-pcllm/3d_report_gen/CCE/val_test_polyp.csv"
+data_root: "/project/lt200353-pcllm/3d_report_gen/CCE/"
+
+# Dataset Strategies
+strategy: 3
+ratio: 5.0
+undersample_method: "framerate" # "framerate" or "random"
+
+# Training Hyperparameters
+epochs: 25
+batch_size: 16
+lr: 0.0001
+weight_decay: 0.01
+grad_accum_steps: 2
+use_weighted_loss: true  # Calculates dynamic positive weight based on actual train_df imbalance
+
+# Model Settings
+backbone_path: "facebook/dinov3-vitl16-pretrain-lvd1689m" # Or your specific path/repo
+freeze_backbone: false
+use_lora: true
+lora_r: 16
+lora_alpha: 32
+lora_dropout: 0.1
+target_modules: ["q_proj", "v_proj", "k_proj"] 
+
+# Hardware Settings
+num_devices: 1
+num_workers: 8
