@@ -1,0 +1,29 @@
+all_samples: 64320
+config:
+  backbone_path: facebook/dinov3-vitl16-pretrain-lvd1689m
+  batch_size: 32
+  check_val_every_n_epoch: 1
+  data_root: /project/lt200353-pcllm/3d_report_gen/CCE/
+  epochs: 5
+  freeze_backbone: false
+  grad_accum_steps: 4
+  height: 448
+  lora_alpha: 32
+  lora_dropout: 0.1
+  lora_r: 16
+  lr: 0.0001
+  num_devices: 1
+  num_workers: 8
+  ratio: 15.0
+  strategy: 3
+  target_modules:
+  - q_proj
+  - v_proj
+  - k_proj
+  train_csv: /project/lt200353-pcllm/3d_report_gen/CCE/train_polyp.csv
+  undersample_method: framerate
+  use_lora: true
+  use_weighted_loss: true
+  val_csv: /project/lt200353-pcllm/3d_report_gen/CCE/val_test_polyp.csv
+  weight_decay: 0.01
+  width: 448

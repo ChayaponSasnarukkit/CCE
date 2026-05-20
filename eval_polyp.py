@@ -139,8 +139,9 @@ def load_config(config_path):
     with open(config_path, 'r') as file:
         return yaml.safe_load(file)
 
-def main(config_path):
-    config = load_config(config_path)
+def main(args):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    config = load_config(args.config)
 
     # --- Transforms ---
     train_transforms = T.Compose([
@@ -199,44 +200,52 @@ def main(config_path):
         weight_val = num_neg / (num_pos + 1e-7)
         pos_weight = torch.tensor([weight_val], dtype=torch.float32)
         print(f"Weighted loss enabled. Positional weight calculated as: {weight_val:.4f}")
-
-    # --- Model Initialization ---
-    model = PathologyClassifier(
+    print(f"Loading model from checkpoint: {args.checkpoint}...")
+    # strict=False allows loading even if pos_weight isn't exactly matched in the checkpoint
+    model = PathologyClassifier.load_from_checkpoint(
+        args.checkpoint, 
         config=config, 
-        pos_weight=pos_weight, 
-        all_samples=len(train_dataset)
+        pos_weight=torch.tensor([1.0]), 
+        strict=False
     )
+    model.to(device)
+    model.eval()
 
-    # --- Callbacks & Logger ---
-    checkpoint_callback = ModelCheckpoint(
-        dirpath=os.path.join(config['data_root'], "checkpoints"),
-        filename="endo-model-{epoch:02d}-{val/AUROC:.4f}",
-        monitor="val/AUROC",
-        mode="max",
-        save_top_k=2,
-    )
-    lr_monitor = LearningRateMonitor(logging_interval='step')
-    logger = TensorBoardLogger("tb_logs", name="endoscopy_classification")
+    # 4. Run Inference
+    all_probs = []
+    
+    print("Running inference...")
+    with torch.no_grad():
+        for images, labels in tqdm(val_loader, desc="Evaluating Batches"):
+            images = images.to(device)
+            
+            # Get raw logits and convert to probabilities [0, 1]
+            logits = model.model(images)
+            probs = torch.sigmoid(logits).cpu().numpy().flatten()
+            
+            all_probs.extend(probs)
 
-    # --- Trainer ---
-    trainer = L.Trainer(
-        max_epochs=config['epochs'],
-        check_val_every_n_epoch=config.get('check_val_every_n_epoch', 1),
-        accelerator='gpu' if torch.cuda.is_available() else 'cpu',
-        devices=config.get('num_devices', 1),
-        accumulate_grad_batches=config['grad_accum_steps'],
-        logger=logger,
-        callbacks=[checkpoint_callback, lr_monitor],
-        precision="16-mixed", # Mixed precision for faster training
-        strategy='auto' if config.get('num_devices', 1) == 1 else 'ddp'
-    )
-
-    # --- Train ---
-    trainer.fit(model, train_loader, val_loader)
+    # 5. Save Results to CSV
+    # Because shuffle=False, the dataloader order perfectly matches val_dataset.df
+    results_df = val_dataset.df.copy()
+    results_df['pred_probability'] = all_probs
+    
+    # Reorder columns for easier reading
+    cols = ['path', 'colon', 'polyp', 'pred_probability']
+    results_df = results_df[cols]
+    
+    results_df.to_csv(args.output, index=False)
+    print(f"\n✅ Inference complete! Results saved to {args.output}")
+    
+    # Quick sanity check print
+    print("\n--- Quick Sanity Check ---")
+    print(results_df.head())
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train Endoscopy Classifier")
-    parser.add_argument("--config", type=str, required=True, help="Path to config yaml file")
+    parser = argparse.ArgumentParser(description="Cache model inference to CSV")
+    parser.add_argument("--config", type=str, required=True, help="Path to config.yaml")
+    parser.add_argument("--checkpoint", type=str, required=True, help="Path to the .ckpt file")
+    parser.add_argument("--output", type=str, default="inference_results.csv", help="Output CSV filename")
+
     args = parser.parse_args()
-    
-    main(args.config)
+    main(args)

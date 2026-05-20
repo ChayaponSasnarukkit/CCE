@@ -5,12 +5,11 @@ data_root: "/project/lt200353-pcllm/3d_report_gen/CCE/"
 check_val_every_n_epoch: 1
 
 # Dataset Strategies
-strategy: 3
-ratio: 15.0
+strategy: 1
+ratio: 3.0
 undersample_method: "framerate" # "framerate" or "random"
-height: 448 
-width: 448
-
+height: 224 
+width: 224
 
 # Training Hyperparameters
 epochs: 5
