@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH -p gpu-limited                  # Specify partition [Compute/Memory/GPU]
+#SBATCH -p gpu-devel                  # Specify partition [Compute/Memory/GPU]
 #SBATCH -N 1 -c 16
 #SBATCH --ntasks-per-node=1   # 4 tasks
 #SBATCH --gpus-per-node=1     # 4 GPUs total on the node
-#SBATCH -t 3:30:00                     # Specify maximum time limit (hour: minute: second)
+#SBATCH -t 0:30:00                     # Specify maximum time limit (hour: minute: second)
 #SBATCH -A lt200353               # Specify project name
 #SBATCH -J TEST                         # Specify job name
 
@@ -21,4 +21,4 @@ export HF_DATASETS_OFFLINE=1
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-srun python eval_polyp.py --config ./config/polypv2.yaml --checkpoint "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/endo-model-recall-epoch=09-val/Recall=0.0993.ckpt" --output my_10_test_predictions.csv
+srun python extract_dino.py

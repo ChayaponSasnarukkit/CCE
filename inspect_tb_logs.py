@@ -3,7 +3,7 @@ from tensorboard.backend.event_processing.event_accumulator import EventAccumula
 from collections import defaultdict
 
 # Update this path if your version number is different!
-LOG_DIR = "tb_logs/endoscopy_classification/version_6"
+LOG_DIR = "tb_logs/endoscopy_classification/version_7"
 
 def print_all_metrics():
     if not os.path.exists(LOG_DIR):
