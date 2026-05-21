@@ -3,7 +3,7 @@
 #SBATCH -N 1 -c 16
 #SBATCH --ntasks-per-node=1   # 4 tasks
 #SBATCH --gpus-per-node=1     # 4 GPUs total on the node
-#SBATCH -t 3:00:00                     # Specify maximum time limit (hour: minute: second)
+#SBATCH -t 3:30:00                     # Specify maximum time limit (hour: minute: second)
 #SBATCH -A lt200353               # Specify project name
 #SBATCH -J TEST                         # Specify job name
 
@@ -21,4 +21,4 @@ export HF_DATASETS_OFFLINE=1
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-srun python eval_polyp.py --config ./config/polypv1.yaml --checkpoint "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/endo-model-epoch=03-val/AUROC=0.8817.ckpt" --output my_test_predictions.csv
+srun python eval_polyp.py --config ./config/polypv1.yaml --checkpoint "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/endo-model-recall-epoch=00-val/Recall=0.8794.ckpt" --output imy_test_predictions.csv

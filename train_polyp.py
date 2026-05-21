@@ -210,10 +210,10 @@ def main(config_path):
     # --- Callbacks & Logger ---
     checkpoint_callback = ModelCheckpoint(
         dirpath=os.path.join(config['data_root'], "checkpoints"),
-        filename="endo-model-{epoch:02d}-{val/AUROC:.4f}",
-        monitor="val/AUROC",
+        filename="endo-model-recall-{epoch:02d}-{val/Recall:.4f}",
+        monitor="val/Recall",
         mode="max",
-        save_top_k=2,
+        save_top_k=10,
     )
     lr_monitor = LearningRateMonitor(logging_interval='step')
     logger = TensorBoardLogger("tb_logs", name="endoscopy_classification")
