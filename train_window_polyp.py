@@ -12,7 +12,7 @@ from sklearn.metrics import (
 
 from model.temporal_classifier import TemporalWindowClassifier
 from datamodule.polyp import WindowedPolypDataset
-
+from tqdm import tqdm
 def calculate_metrics(y_true, y_prob, y_pred):
     """
     y_true: 1D numpy array of true binary labels
@@ -53,17 +53,17 @@ config = {
     "epochs": 15,
     "lr": 1e-4,
     "warmup_epochs": 2, # How many epochs to linearly scale LR before cosine decay
-    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints",
+    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/448i_strat2",
     
     # --- Imbalance Settings ---
     "undersample": {
         "active": True,            
         "strategy": 2,             
-        "ratio": 5.0,              
+        "ratio": 3.0,              
         "method": "framerate"      
     },
     "loss_type": "weighted_ce",
-    "weighted_ce_weights": [1.0, 5.0] 
+    "class_frequencies": [300000, 600]
 }
 
 import torch.nn.functional as F
@@ -94,9 +94,9 @@ def run_pipeline(train_csv_path, val_csv_path, embeddings_dict_path):
     os.makedirs(config["checkpoint_dir"], exist_ok=True)
     
     # 1. Load Embeddings and Datasets
-    print("Loading pre-computed embeddings into memory...")
+    print("Loading pre-computed embeddings into memory...", flush=True)
     embeddings_dict = torch.load(embeddings_dict_path, map_location='cpu')
-
+    print("LOADING COMPLETE", flush=True)
     train_dataset = WindowedPolypDataset(
         csv_input=train_csv_path,
         embeddings_dict=embeddings_dict,
@@ -118,11 +118,23 @@ def run_pipeline(train_csv_path, val_csv_path, embeddings_dict_path):
     val_loader = DataLoader(val_dataset, batch_size=config["batch_size"], shuffle=False, num_workers=4)
 
     # 2. Build Model & Loss
-    model = TemporalWindowClassifier(window_size=config["window_size"], embed_dim=config["embed_dim"]).to(device)
+    model = TemporalWindowClassifier(window_size=config["window_size"], embed_dim=config["embed_dim"], num_heads=16, depth=4).to(device)
 
     if config["loss_type"] == "weighted_ce":
-        weights = torch.tensor(config["weighted_ce_weights"], dtype=torch.float).to(device)
-        criterion = nn.CrossEntropyLoss(weight=weights)
+        # 1. Convert frequencies to tensor
+        freqs = torch.tensor(config["class_frequencies"], dtype=torch.float32)
+        
+        # 2. Calculate inverse frequencies
+        inverse_freqs = 1.0 / freqs
+        
+        # 3. Normalize so the sum of weights equals the number of classes (2)
+        # This keeps the overall gradient scale stable and predictable
+        normalized_weights = inverse_freqs / inverse_freqs.sum() * len(freqs)
+        
+        criterion = nn.CrossEntropyLoss(weight=normalized_weights.to(device))
+        
+        # For [300k, 600], this will print something like: [0.0039, 1.9960]
+        print(f"Loss Configured: Weighted CE with normalized weights: {normalized_weights.tolist()}")
     elif config["loss_type"] == "focal":
         # Alpha controls class weighting. 0.75 pushes it to focus heavily on class 1 (polyps)
         criterion = FocalLoss(alpha=0.75, gamma=2.0) 
@@ -146,7 +158,7 @@ def run_pipeline(train_csv_path, val_csv_path, embeddings_dict_path):
     mid_idx = config["window_size"] // 2
 
     # 4. Main Training Engine
-    print(f"--- Starting Training on {device} ---")
+    print(f"--- Starting Training on {device} ---", flush=True)
     for epoch in range(config["epochs"]):
         
         # ==========================
@@ -154,8 +166,9 @@ def run_pipeline(train_csv_path, val_csv_path, embeddings_dict_path):
         # ==========================
         model.train()
         running_loss = 0.0
+        train_pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{config['epochs']} [Train]", leave=False)
         
-        for features, labels in train_loader:
+        for features, labels in train_pbar:
             features, labels = features.to(device), labels.to(device)
             target_labels = labels[:, mid_idx]
             
@@ -164,7 +177,7 @@ def run_pipeline(train_csv_path, val_csv_path, embeddings_dict_path):
             loss = criterion(logits, target_labels)
             loss.backward()
             
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=2.0)
             optimizer.step()
             scheduler.step() # Step the scheduler per batch for smooth warmup
             
@@ -179,9 +192,9 @@ def run_pipeline(train_csv_path, val_csv_path, embeddings_dict_path):
         model.eval()
         val_loss = 0.0
         all_preds, all_probs, all_targets = [], [], []
-
+        val_pbar = tqdm(val_loader, desc=f"Epoch {epoch+1}/{config['epochs']} [Val]", leave=False)
         with torch.no_grad():
-            for features, labels in val_loader:
+            for features, labels in val_pbar:
                 features, labels = features.to(device), labels.to(device)
                 target_labels = labels[:, mid_idx]
                 
@@ -262,5 +275,5 @@ if __name__ == '__main__':
     TEST_CSV = "/project/lt200353-pcllm/3d_report_gen/CCE/val_test_polyp.csv"
     OUTPUT_FILE = os.path.join(DATA_ROOT, "features_dinov3", "224_colon_embeddings_dict.pt")
 
-    print(config, OUTPUT_FILE)
+    print(config, OUTPUT_FILE, flush=True)
     run_pipeline(train_csv_path=TRAIN_CSV, val_csv_path=TEST_CSV, embeddings_dict_path=OUTPUT_FILE)
