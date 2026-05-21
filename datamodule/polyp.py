@@ -5,6 +5,116 @@ import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 
+class WindowedPolypDataset(Dataset):
+    def __init__(self, csv_input, embeddings_dict, window_size=32, label_col='polyp', 
+                 apply_undersample=False, strategy=1, ratio=1.0, undersample_method='framerate'):
+        self.window_size = window_size
+        self.embeddings_dict = embeddings_dict
+        self.label_col = label_col
+        
+        # 1. Load CSV
+        if isinstance(csv_input, str):
+            raw_df = pd.read_csv(csv_input)
+        else:
+            raw_df = csv_input.copy()
+            
+        # Dynamically infer video folder ID
+        raw_df['video_id'] = raw_df['path'].apply(lambda x: str(x).split('/')[0])
+        
+        # 2. Store the FULL sequential videos for perfect temporal context retrieval
+        full_colon_df = raw_df[raw_df['colon'] == 1].sort_values(by=['video_id', 'path']).reset_index(drop=True)
+        self.videos = [v_df.reset_index(drop=True) for _, v_df in full_colon_df.groupby('video_id')]
+        self.video_id_to_idx = {v_df['video_id'].iloc[0]: i for i, v_df in enumerate(self.videos)}
+
+        # 3. Determine the Valid Target Prediction Points
+        if apply_undersample:
+            print(f"Applying Undersampling Strategy {strategy} (Ratio: {ratio}, Method: {undersample_method})...")
+            if strategy == 1:
+                sampled_targets = self._strategy_1(raw_df, ratio)
+            elif strategy == 2:
+                sampled_targets = self._strategy_2(raw_df, ratio)
+            elif strategy == 3:
+                sampled_targets = self._strategy_3(raw_df, ratio, undersample_method)
+            else:
+                raise ValueError("Strategy must be 1, 2, or 3")
+        else:
+            print("No undersampling applied. Using ALL available colon frames.")
+            sampled_targets = full_colon_df  # Uses every single frame
+
+        # 4. Map selected targets to their exact positions inside the full videos
+        self.flat_indices = []
+        for _, row in sampled_targets.iterrows():
+            v_id = row['video_id']
+            p_path = row['path']
+            v_idx = self.video_id_to_idx[v_id]
+            v_df = self.videos[v_idx]
+            f_idx = v_df[v_df['path'] == p_path].index[0]
+            
+            self.flat_indices.append((v_idx, f_idx))
+            
+        print(f"Dataset active targets: {len(self.flat_indices)} frames.")
+
+    def _strategy_1(self, df, ratio):
+        colon_df = df[df['colon'] == 1]
+        polyps = colon_df[colon_df['polyp'] == 1]
+        normals = colon_df[colon_df['polyp'] == 0]
+        target_count = min(int(len(polyps) * ratio), len(normals))
+        sampled_normals = normals.sample(n=target_count, random_state=42)
+        return pd.concat([polyps, sampled_normals])
+
+    def _strategy_2(self, df, ratio):
+        colon_df = df[df['colon'] == 1]
+        polyps = colon_df[colon_df['polyp'] == 1]
+        normals = colon_df[colon_df['polyp'] == 0].sort_values(by='path').reset_index(drop=True)
+        target_count = min(int(len(polyps) * ratio), len(normals))
+        if target_count > 0:
+            indices = np.linspace(0, len(normals) - 1, target_count).astype(int)
+            sampled_normals = normals.iloc[indices]
+        else:
+            sampled_normals = pd.DataFrame(columns=normals.columns)
+        return pd.concat([polyps, sampled_normals])
+
+    def _strategy_3(self, df, ratio, method):
+        polyps_colon = df[(df['colon'] == 1) & (df['polyp'] == 1)]
+        polyps_other = df[(df['colon'] == 0) & (df['polyp'] == 1)]
+        all_polyps = pd.concat([polyps_colon, polyps_other])
+        normals_colon = df[(df['colon'] == 1) & (df['polyp'] == 0)].sort_values(by='path').reset_index(drop=True)
+        target_count = min(int(len(all_polyps) * ratio), len(normals_colon))
+        
+        if method == 'random':
+            sampled_normals = normals_colon.sample(n=target_count, random_state=42)
+        elif method == 'framerate':
+            if target_count > 0:
+                indices = np.linspace(0, len(normals_colon) - 1, target_count).astype(int)
+                sampled_normals = normals_colon.iloc[indices]
+            else:
+                sampled_normals = pd.DataFrame(columns=normals_colon.columns)
+        return pd.concat([all_polyps, sampled_normals])
+
+    def __len__(self):
+        return len(self.flat_indices)
+
+    def __getitem__(self, idx):
+        v_idx, f_idx = self.flat_indices[idx]
+        v_df = self.videos[v_idx]
+        num_frames = len(v_df)
+        
+        half_left = self.window_size // 2
+        half_right = self.window_size - half_left
+        
+        # Edge-clamping retrieves frames smoothly from the uncut sequential array
+        window_indices = [
+            max(0, min(j, num_frames - 1)) 
+            for j in range(f_idx - half_left, f_idx + half_right)
+        ]
+        
+        paths = v_df['path'].values[window_indices]
+        labels = v_df[self.label_col].values[window_indices]
+        
+        window_embeddings = [self.embeddings_dict[p].clone() for p in paths]
+        
+        return torch.stack(window_embeddings), torch.tensor(labels, dtype=torch.long)
+
 class EndoscopyTrainDataset(Dataset):
     """
     Training Dataset that applies sampling strategies to handle class imbalance 
