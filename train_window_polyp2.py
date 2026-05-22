@@ -53,7 +53,7 @@ config = {
     "epochs": 15,
     "lr": 1e-4,
     "warmup_epochs": 2, # How many epochs to linearly scale LR before cosine decay
-    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/448i_over",
+    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/448i2_over",
     
     # --- Imbalance Settings ---
     "undersample": {
@@ -65,8 +65,8 @@ config = {
         "active": True,            
         "ratio": 1.0               # Replicates polyps until they equal the normals 1:1
     },
-    "loss_type": "ce",
-    # "loss_type": "weighted_ce",
+    #"loss_type": "ce",
+    "loss_type": "weighted_ce",
     "class_frequencies": [300000, 600]
 }
 
@@ -101,21 +101,30 @@ def run_pipeline(train_csv_path, val_csv_path, embeddings_dict_path):
     print("Loading pre-computed embeddings into memory...", flush=True)
     embeddings_dict = torch.load(embeddings_dict_path, map_location='cpu')
     print("LOADING COMPLETE", flush=True)
-    train_dataset = WindowedPolypDataset(
+
+    # 1. Initialize Training Dataset
+    train_dataset = WindowedPolypDatasetv2(
         csv_input=train_csv_path,
         embeddings_dict=embeddings_dict,
         window_size=config["window_size"],
+        is_train=True,
+        # Undersample args
         apply_undersample=config["undersample"]["active"],
-        strategy=config["undersample"]["strategy"],
-        ratio=config["undersample"]["ratio"],
-        undersample_method=config["undersample"]["method"]
+        undersample_ratio=config["undersample"]["ratio"],
+        undersample_method=config["undersample"]["method"],
+        # Oversample args
+        apply_oversample=config["oversample"]["active"],
+        oversample_ratio=config["oversample"]["ratio"]
     )
-    
-    val_dataset = WindowedPolypDataset(
+
+    # 2. Initialize Validation Dataset
+    val_dataset = WindowedPolypDatasetv2(
         csv_input=val_csv_path,
         embeddings_dict=embeddings_dict,
         window_size=config["window_size"],
-        apply_undersample=False # Force False for validation
+        is_train=False,         # Safely bypasses all sampling logic
+        apply_undersample=False,
+        apply_oversample=False
     )
 
     train_loader = DataLoader(train_dataset, batch_size=config["batch_size"], shuffle=True, num_workers=4)
