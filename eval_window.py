@@ -131,7 +131,7 @@ config = {
     "embed_dim": 1024,
     "batch_size": 128,
     "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/448i2_over",
-    "checkpoint_name": "best_model.pth", 
+    "checkpoint_name": "_best_model.pth", 
     "output_csv": "evaluation_predictions.csv"
 }
 
@@ -168,7 +168,7 @@ def run_evaluation(test_csv_path, embeddings_dict_path):
         raise FileNotFoundError(f"Checkpoint not found at: {checkpoint_path}")
         
     print(f"Loading weights from {checkpoint_path}...")
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint['model_state_dict'])
     print(f"Loaded model from epoch {checkpoint['epoch']} with Validation Metrics: {checkpoint.get('metrics', 'N/A')}")
 
