@@ -59,7 +59,7 @@ config = {
     # --- Imbalance Settings ---
     "undersample": {
         "active": True,           
-        "ratio": 5,              
+        "ratio": 3.5,              
         #"method": "random",
         "method": "framerate"
     },
