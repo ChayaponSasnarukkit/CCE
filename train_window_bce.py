@@ -48,18 +48,18 @@ def calculate_metrics(y_true, y_prob, y_pred):
 
 # Setup Config Parameters
 config = {
-    "window_size": 32,
+    "window_size": 16,
     "embed_dim": 1024,
     "batch_size": 128,
     "epochs": 15,
-    "lr": 5e-5,
+    "lr": 3e-5,
     "warmup_epochs": 2, 
-    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/window_32_ratio_3",
+    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/window_16_ratio_3",
     
     # --- Imbalance Settings ---
     "undersample": {
         "active": True,           
-        "ratio": 2.0,              
+        "ratio": 3,              
         #"method": "random",
         "method": "framerate"
     },
