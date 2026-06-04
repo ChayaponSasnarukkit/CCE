@@ -21,4 +21,4 @@ export HF_DATASETS_OFFLINE=1
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-srun python extract_dino.py
+srun python extract_dino_lora.py --config config/polypv3.yaml --checkpoint "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/endo-model-epoch=00-val/AUROC=0.8646.ckpt" 
