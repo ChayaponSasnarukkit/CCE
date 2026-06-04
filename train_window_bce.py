@@ -52,14 +52,14 @@ config = {
     "embed_dim": 1024,
     "batch_size": 128,
     "epochs": 15,
-    "lr": 5e-5,
+    "lr": 7.5e-5,
     "warmup_epochs": 2, 
-    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/_xl_window_4_ratio_3v4",
+    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/xl_window_4_ratio_5v5",
     
     # --- Imbalance Settings ---
     "undersample": {
         "active": True,           
-        "ratio": 3,              
+        "ratio": 5,              
         #"method": "random",
         "method": "framerate"
     },
@@ -131,8 +131,8 @@ def run_pipeline(train_csv_path, val_csv_path, embeddings_dict_path):
     model = TemporalWindowClassifier(
         window_size=config["window_size"], 
         embed_dim=config["embed_dim"], 
-        num_heads=32, 
-        depth=6,
+        num_heads=16, 
+        depth=8,
         num_classes=1,
         drop_rate=0.1, drop_path_rate=0.1
     ).to(device)
