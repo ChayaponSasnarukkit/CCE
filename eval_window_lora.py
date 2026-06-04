@@ -133,7 +133,7 @@ config = {
     "window_size": 4,
     "embed_dim": 1024,
     "batch_size": 128,
-    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/window_4_ratio_3v3",
+    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/xl_window_4_ratio_3v3",
     "checkpoint_name": "best_model.pth", 
     "output_csv": "lora_evaluation_predictionsv3.csv"
 }
@@ -163,7 +163,7 @@ def run_evaluation(test_csv_path, embeddings_dict_path):
         window_size=config["window_size"], 
         embed_dim=config["embed_dim"], 
         num_heads=16, 
-        depth=4,
+        depth=8,
         num_classes=1,
         drop_rate=0.1, drop_path_rate=0.1
     ).to(device)
