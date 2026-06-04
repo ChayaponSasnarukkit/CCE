@@ -30,9 +30,12 @@ class WindowedPolypDatasetv2(Dataset):
             raw_df = csv_input.copy()
             
         raw_df['video_id'] = raw_df['path'].apply(lambda x: str(x).split('/')[0])
+
+        raw_df['frame_num'] = raw_df['path'].str.extract(r'(\d+)').astype(int)
         
-        # 2. Store FULL sequential videos for window extraction
-        full_colon_df = raw_df[raw_df['colon'] == 1].sort_values(by=['video_id', 'path']).reset_index(drop=True)
+        # 2. Store FULL sequential videos for window extraction (SORT BY NUMERIC FRAME)
+        full_colon_df = raw_df[raw_df['colon'] == 1].sort_values(by=['video_id', 'frame_num']).reset_index(drop=True)
+        
         self.videos = [v_df.reset_index(drop=True) for _, v_df in full_colon_df.groupby('video_id')]
         self.video_id_to_idx = {v_df['video_id'].iloc[0]: i for i, v_df in enumerate(self.videos)}
 
