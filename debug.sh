@@ -21,5 +21,5 @@ export HF_DATASETS_OFFLINE=1
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-#srun python eval_window.py
-srun python train_window_bce.py
+srun python eval_window_lora.py
+#srun python train_window_bce.py
