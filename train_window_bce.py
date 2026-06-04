@@ -48,13 +48,13 @@ def calculate_metrics(y_true, y_prob, y_pred):
 
 # Setup Config Parameters
 config = {
-    "window_size": 32,
+    "window_size": 8,
     "embed_dim": 1024,
     "batch_size": 128,
     "epochs": 15,
     "lr": 1e-4,
     "warmup_epochs": 2, 
-    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/448i2_over",
+    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/448i2_over_0.25",
     
     # --- Imbalance Settings ---
     "undersample": {
@@ -64,11 +64,12 @@ config = {
     },
     "oversample": {
         "active": True,            
-        "ratio": 0.5               
+        "ratio": 1.0               
     },
     # Changed loss options to reflect BCE
     "loss_type": "weighted_bce", 
-    "class_frequencies": [300000, 600] # [Negatives, Positives]
+    "class_frequencies": [300000, 300000]
+    #"class_frequencies": [300000, 600] # [Negatives, Positives]
 }
 
 class BinaryFocalLoss(nn.Module):
