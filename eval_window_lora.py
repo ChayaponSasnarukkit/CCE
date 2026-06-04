@@ -130,10 +130,10 @@ def calculate_metrics(y_true, y_prob, y_pred):
     }
 
 config = {
-    "window_size": 8,
+    "window_size": 4,
     "embed_dim": 1024,
     "batch_size": 128,
-    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/window_32_ratio_3",
+    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/window_4_ratio_3v3",
     "checkpoint_name": "best_model.pth", 
     "output_csv": "lora_evaluation_predictionsv3.csv"
 }
@@ -162,7 +162,7 @@ def run_evaluation(test_csv_path, embeddings_dict_path):
     model = TemporalWindowClassifier(
         window_size=config["window_size"], 
         embed_dim=config["embed_dim"], 
-        num_heads=8, 
+        num_heads=16, 
         depth=4,
         num_classes=1,
         drop_rate=0.1, drop_path_rate=0.1

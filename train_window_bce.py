@@ -48,13 +48,13 @@ def calculate_metrics(y_true, y_prob, y_pred):
 
 # Setup Config Parameters
 config = {
-    "window_size": 16,
+    "window_size": 4,
     "embed_dim": 1024,
     "batch_size": 128,
     "epochs": 15,
-    "lr": 3e-5,
-    "warmup_epochs": 2, 
-    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/window_16_ratio_3",
+    "lr": 7.5e-5,
+    "warmup_epochs": 3, 
+    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/xl_window_4_ratio_3v4",
     
     # --- Imbalance Settings ---
     "undersample": {
@@ -70,7 +70,7 @@ config = {
     # Changed loss options to reflect BCE
     "loss_type": "weighted_bce", 
     #"class_frequencies": [300000, 300000]
-    "class_frequencies": [300000, 60000] # [Negatives, Positives]
+    "class_frequencies": [300000, 50000] # [Negatives, Positives]
 }
 
 class BinaryFocalLoss(nn.Module):
@@ -131,8 +131,8 @@ def run_pipeline(train_csv_path, val_csv_path, embeddings_dict_path):
     model = TemporalWindowClassifier(
         window_size=config["window_size"], 
         embed_dim=config["embed_dim"], 
-        num_heads=8, 
-        depth=4,
+        num_heads=16, 
+        depth=8,
         num_classes=1,
         drop_rate=0.1, drop_path_rate=0.1
     ).to(device)
