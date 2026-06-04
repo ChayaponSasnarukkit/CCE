@@ -52,24 +52,24 @@ config = {
     "embed_dim": 1024,
     "batch_size": 128,
     "epochs": 15,
-    "lr": 1e-4,
+    "lr": 2e-5,
     "warmup_epochs": 2, 
-    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/448i2_over_0.25",
+    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/448i2_over_3",
     
     # --- Imbalance Settings ---
     "undersample": {
         "active": False,           
-        "ratio": 5.0,              
+        "ratio": 3.0,              
         "method": "framerate"
     },
     "oversample": {
         "active": True,            
-        "ratio": 1.0               
+        "ratio": 0.333             
     },
     # Changed loss options to reflect BCE
     "loss_type": "weighted_bce", 
-    "class_frequencies": [300000, 300000]
-    #"class_frequencies": [300000, 600] # [Negatives, Positives]
+    #"class_frequencies": [300000, 300000]
+    "class_frequencies": [300000, 100000] # [Negatives, Positives]
 }
 
 class BinaryFocalLoss(nn.Module):
@@ -131,7 +131,7 @@ def run_pipeline(train_csv_path, val_csv_path, embeddings_dict_path):
         window_size=config["window_size"], 
         embed_dim=config["embed_dim"], 
         num_heads=8, 
-        depth=2,
+        depth=4,
         num_classes=1,
         drop_rate=0.1, drop_path_rate=0.1
     ).to(device)
@@ -284,7 +284,7 @@ if __name__ == '__main__':
     DATA_ROOT = "/project/lt200353-pcllm/3d_report_gen/CCE/"
     TRAIN_CSV = "/project/lt200353-pcllm/3d_report_gen/CCE/train_polyp.csv" 
     TEST_CSV = "/project/lt200353-pcllm/3d_report_gen/CCE/val_test_polyp.csv"
-    OUTPUT_FILE = os.path.join(DATA_ROOT, "features_dinov3", "224_colon_embeddings_dict.pt")
-
+    #OUTPUT_FILE = os.path.join(DATA_ROOT, "features_dinov3", "224_colon_embeddings_dict.pt")
+    OUTPUT_FILE = "/project/lt200353-pcllm/3d_report_gen/CCE/features_dinov3/lora_embeddings_dict.pt"
     print(config, OUTPUT_FILE, flush=True)
     run_pipeline(train_csv_path=TRAIN_CSV, val_csv_path=TEST_CSV, embeddings_dict_path=OUTPUT_FILE)
