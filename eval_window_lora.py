@@ -130,9 +130,9 @@ config = {
     "window_size": 8,
     "embed_dim": 1024,
     "batch_size": 128,
-    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/448i2_under_3",
-    "checkpoint_name": "best_model.pth", 
-    "output_csv": "lora_evaluation_predictions.csv"
+    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/448i2_under_3_tune_mid_weight",
+    "checkpoint_name": "_best_model.pth", 
+    "output_csv": "lora_evaluation_predictionsv2.csv"
 }
 
 def run_evaluation(test_csv_path, embeddings_dict_path):

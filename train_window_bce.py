@@ -50,26 +50,26 @@ def calculate_metrics(y_true, y_prob, y_pred):
 config = {
     "window_size": 8,
     "embed_dim": 1024,
-    "batch_size": 128,
+    "batch_size": 256,
     "epochs": 15,
-    "lr": 2e-5,
+    "lr": 5e-5,
     "warmup_epochs": 2, 
-    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/448i2_over_3",
+    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/448i2_under_3_tune2_mid_weight",
     
     # --- Imbalance Settings ---
     "undersample": {
-        "active": False,           
+        "active": True,           
         "ratio": 3.0,              
         "method": "framerate"
     },
     "oversample": {
-        "active": True,            
+        "active": False,            
         "ratio": 0.333             
     },
     # Changed loss options to reflect BCE
     "loss_type": "weighted_bce", 
     #"class_frequencies": [300000, 300000]
-    "class_frequencies": [300000, 100000] # [Negatives, Positives]
+    "class_frequencies": [300000, 50000] # [Negatives, Positives]
 }
 
 class BinaryFocalLoss(nn.Module):
