@@ -130,7 +130,7 @@ config = {
     "window_size": 8,
     "embed_dim": 1024,
     "batch_size": 128,
-    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/448i2_under_0.25",
+    "checkpoint_dir": "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/448i2_under_3",
     "checkpoint_name": "best_model.pth", 
     "output_csv": "lora_evaluation_predictions.csv"
 }
@@ -160,7 +160,7 @@ def run_evaluation(test_csv_path, embeddings_dict_path):
         window_size=config["window_size"], 
         embed_dim=config["embed_dim"], 
         num_heads=8, 
-        depth=2,
+        depth=4,
         num_classes=1,
         drop_rate=0.1, drop_path_rate=0.1
     ).to(device)
@@ -180,7 +180,7 @@ def run_evaluation(test_csv_path, embeddings_dict_path):
     all_probs_pos = []
     all_probs_neg = []
     all_targets = []
-    all_paths = [] # <--- Added list to track paths
+    all_paths = [] 
     
     mid_idx = config["window_size"] // 2
 
@@ -188,24 +188,28 @@ def run_evaluation(test_csv_path, embeddings_dict_path):
     test_pbar = tqdm(test_loader, desc="Evaluating", leave=False)
     
     with torch.no_grad():
-        # Notice we unpack 'paths' here
         for features, labels, paths in test_pbar:
             features, labels = features.to(device), labels.to(device)
             target_labels = labels[:, mid_idx]
             
             logits = model(features)
             
-            probs_full = torch.softmax(logits, dim=1)
-            probs_pos = probs_full[:, 1]
-            probs_neg = probs_full[:, 0]
-            preds = torch.argmax(logits, dim=1)
+            # Flatten to [batch_size] to ensure correct shape for sigmoid and arrays
+            logits = logits.view(-1)
+            
+            # Calculate probabilities using Sigmoid for single-class BCE
+            probs_pos = torch.sigmoid(logits)
+            probs_neg = 1.0 - probs_pos
+            
+            # Threshold at 0.5 for final binary prediction
+            preds = (probs_pos >= 0.5).int()
             
             all_probs_pos.extend(probs_pos.cpu().numpy())
             all_probs_neg.extend(probs_neg.cpu().numpy())
             all_preds.extend(preds.cpu().numpy())
             all_targets.extend(target_labels.cpu().numpy())
             
-            # Since paths is a tuple of strings from dataloader, we just extend it
+            # Paths is a tuple of strings from dataloader
             all_paths.extend(paths)
 
     # 5. Calculate Metrics
@@ -226,7 +230,7 @@ def run_evaluation(test_csv_path, embeddings_dict_path):
 
     # 6. Save to CSV
     output_df = pd.DataFrame({
-        "Path": all_paths, # <--- Added to dataframe
+        "Path": all_paths, 
         "True_Label": y_true,
         "Predicted_Class": y_pred,
         "Probability_Class_0 (Normal)": all_probs_neg,
@@ -240,6 +244,6 @@ def run_evaluation(test_csv_path, embeddings_dict_path):
 if __name__ == '__main__':
     DATA_ROOT = "/project/lt200353-pcllm/3d_report_gen/CCE/"
     TEST_CSV = "/project/lt200353-pcllm/3d_report_gen/CCE/val_test_polyp.csv"
-    EMBEDDINGS_FILE = os.path.join(DATA_ROOT, "features_dinov3", "224_colon_embeddings_dict.pt")
+    EMBEDDINGS_FILE = os.path.join(DATA_ROOT, "features_dinov3", "lora_embeddings_dict.pt")
 
     run_evaluation(test_csv_path=TEST_CSV, embeddings_dict_path=EMBEDDINGS_FILE)
