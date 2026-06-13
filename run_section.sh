@@ -21,4 +21,4 @@ export HF_DATASETS_OFFLINE=1
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-srun python train_sectionv2.py --savepoint /project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/base_augment_log --weighting log-smoothing --augmentation augment --backbone dino
+srun python train_sectionv2.py --savepoint /project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/base_augment_log --weighting focal --loss_type focal --augmentation augment --backbone dino

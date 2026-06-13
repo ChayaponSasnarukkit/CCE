@@ -192,7 +192,7 @@ def main():
     # OPTION 2: Savepoint path
     parser.add_argument('--savepoint', type=str, default='/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints', help='Base path for checkpoints')
     # OPTION 3: Weighting
-    parser.add_argument('--weighting', type=str, choices=['None', 'standard', 'log-smoothing'], default='standard', help='Class weighting strategy')
+    parser.add_argument('--weighting', type=str, choices=['None', 'standard', 'log-smoothing', 'focal'], default='standard', help='Class weighting strategy')
     # OPTION 4: Augmentation
     parser.add_argument('--augmentation', type=str, choices=['None', 'augment'], default='augment', help='Toggle training augmentations')
     # OPTION 5: Backbone
