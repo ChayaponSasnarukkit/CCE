@@ -162,7 +162,10 @@ class MultiClassFocalLoss(nn.Module):
             reduction (str): 'mean', 'sum', or 'none'.
         """
         super(MultiClassFocalLoss, self).__init__()
-        self.alpha_weights = alpha_weights
+        if alpha_weights is not None:
+            self.register_buffer('alpha_weights', alpha_weights)
+        else:
+            self.alpha_weights = None
         self.gamma = gamma
         self.reduction = reduction
 
