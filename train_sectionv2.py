@@ -211,7 +211,7 @@ def main():
     args['weighting'] = cli_args.weighting
     args['augmentation'] = cli_args.augmentation
     args['backbone'] = cli_args.backbone
-
+    args['loss_type'] = cli_args.loss_type
     # --- TRANSFORMS ---
     val_transform = T.Compose([
         T.Resize((args["height"], args["width"])),
