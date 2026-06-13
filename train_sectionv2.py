@@ -30,7 +30,7 @@ from model.dinov3_classifier import DinoV3ClassifierLinearHead
 from datamodule.section import EndoCapsuleDataset
 
 class SectionClassifier(L.LightningModule):
-    def __init__(self, config: dict, class_weights: torch.Tensor = None, all_samples=100):
+    def __init__(self, config: dict, class_weights: torch.Tensor = None, loss_type: str = 'focal', all_samples=100):
         """
         Initializes the classification module.
         """
@@ -66,7 +66,14 @@ class SectionClassifier(L.LightningModule):
 
         # --- Loss Function ---
         self.register_buffer('class_weights', class_weights)
-        self.criterion = nn.CrossEntropyLoss(weight=self.class_weights)
+
+        if loss_type == 'focal':
+            # Make sure to move weights to the same device as your model
+            # weights = class_weights_tensor.to(device) if class_weights_tensor is not None else None
+            self.criterion = MultiClassFocalLoss(alpha_weights=self.class_weights, gamma=2.0)
+        else:
+            # Standard Cross Entropy
+            self.criterion = nn.CrossEntropyLoss(weight=self.class_weights)
 
         # --- Validation Metrics ---
         metrics = MetricCollection({
@@ -143,6 +150,39 @@ class SectionClassifier(L.LightningModule):
             },
         }
 
+import torch.nn as nn
+import torch.nn.functional as F
+
+class MultiClassFocalLoss(nn.Module):
+    def __init__(self, alpha_weights=None, gamma=2.0, reduction='mean'):
+        """
+        Args:
+            alpha_weights (Tensor): The class_weights_tensor calculated above.
+            gamma (float): Focusing parameter. Default is 2.0.
+            reduction (str): 'mean', 'sum', or 'none'.
+        """
+        super(MultiClassFocalLoss, self).__init__()
+        self.alpha_weights = alpha_weights
+        self.gamma = gamma
+        self.reduction = reduction
+
+    def forward(self, inputs, targets):
+        # Calculate standard cross entropy loss (incorporating the alpha weights)
+        ce_loss = F.cross_entropy(inputs, targets, weight=self.alpha_weights, reduction='none')
+        
+        # Get the probability of the true class (p_t)
+        pt = torch.exp(-ce_loss)
+        
+        # Apply the focal loss formula: (1 - p_t)^gamma * CE_Loss
+        focal_loss = ((1 - pt) ** self.gamma) * ce_loss
+        
+        if self.reduction == 'mean':
+            return focal_loss.mean()
+        elif self.reduction == 'sum':
+            return focal_loss.sum()
+        else:
+            return focal_loss
+
 def main():
     # --- ARGPARSE SETUP ---
     parser = argparse.ArgumentParser(description="Train EndoCapsule Classifier")
@@ -157,6 +197,8 @@ def main():
     parser.add_argument('--augmentation', type=str, choices=['None', 'augment'], default='augment', help='Toggle training augmentations')
     # OPTION 5: Backbone
     parser.add_argument('--backbone', type=str, choices=['dino', 'resnet'], default='dino', help='Model backbone to use')
+    
+    parser.add_argument('--loss_type', type=str, choices=['focal', 'bce'], default='focal', help='Loss Type')
     
     cli_args = parser.parse_args()
 
@@ -250,6 +292,10 @@ def main():
         elif args['weighting'] == 'log-smoothing':
             # W_c = max(1, log(1 + N_total / (N_classes * N_c)))
             weights = np.maximum(1.0, np.log(1.0 + total_samples / (num_classes * class_counts + 1e-6)))
+        elif args['weighting'] == 'focal':
+            # Alpha (α) for focal loss: higher weight for rarer classes, bounded between 0 and 1
+            frequencies = class_counts / total_samples
+            weights = 1.0 - frequencies
         
         class_weights_tensor = torch.tensor(weights, dtype=torch.float32)
 
@@ -257,8 +303,10 @@ def main():
         for name, weight in zip(['mouth', 'esophagus', 'stomach', 'small intestine', 'colon'], class_weights_tensor):
             print(f"  - {name}: {weight:.4f}")
     
+    # Initialize loss function based on args
+    
     # --- INITIALIZE MODEL ---
-    model = SectionClassifier(args, class_weights=class_weights_tensor, all_samples=len(train_dataset))
+    model = SectionClassifier(args, class_weights=class_weights_tensor, loss_type=args['loss_type'], all_samples=len(train_dataset))
 
     # --- OPTION 2: SAVEPOINT PATHING ---
     val_checkpoint_callback = ModelCheckpoint(
