@@ -21,4 +21,4 @@ export HF_DATASETS_OFFLINE=1
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 
-srun python eval_sectionv2.py --ckpt "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/base_augment_log/val_best/epoch=01-val/AUROC_macro=0.9871.ckpt" --config "./config/section.yaml" --base_output_dir "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/base_augment_log/val_best/epoch=01-val/"
+srun python eval_sectionv2.py --ckpt "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/base_augment_log/val_best/epoch=02-val/AUROC_macro=0.9864.ckpt" --config "./config/section.yaml" --base_output_dir "/project/lt200353-pcllm/3d_report_gen/CCE/checkpoints/base_augment_log/val_best/epoch=02-val/"
